@@ -25,23 +25,23 @@ end
 
 -- Create user commands
 function M.create_commands()
-  vim.api.nvim_create_user_command('BkmrList', function(opts)
-    M.list_snippets(opts.args)
-  end, {
-    desc = 'List all bkmr snippets',
-    nargs = '?'
-  })
-
   vim.api.nvim_create_user_command('BkmrEdit', function(opts)
-    local id = tonumber(opts.args)
-    if id then
-      M.edit_snippet(id)
+    -- Use provided language or default to current buffer's filetype
+    local language_filter = nil
+    if opts.args and opts.args ~= "" then
+      language_filter = opts.args
     else
-      vim.notify('BkmrEdit: Please provide a snippet ID', vim.log.levels.ERROR)
+      -- Default to current buffer's filetype
+      language_filter = vim.bo.filetype
+      -- Only use if it's a recognized filetype (not empty)
+      if language_filter == "" then
+        language_filter = nil
+      end
     end
+    M.list_snippets(language_filter)
   end, {
-    desc = 'Edit bkmr snippet by ID',
-    nargs = 1
+    desc = 'Edit bkmr snippets (defaults to current filetype)',
+    nargs = '?'
   })
 
   vim.api.nvim_create_user_command('BkmrNew', function()
@@ -61,25 +61,24 @@ function M.create_commands()
     desc = 'Delete bkmr snippet by ID',
     nargs = 1
   })
-
-  vim.api.nvim_create_user_command('BkmrSearch', function(opts)
-    M.search_snippets(opts.args)
-  end, {
-    desc = 'Search bkmr snippets',
-    nargs = '?'
-  })
-
-  vim.api.nvim_create_user_command('BkmrTags', function()
-    M.list_tags()
-  end, {
-    desc = 'List available tags'
-  })
 end
 
 -- Public API functions
 
--- List all snippets with optional filtering
+-- Browse and edit snippets with optional filtering
 function M.list_snippets(language_filter)
+  if config.get().debug then
+    local msg = '[bkmr.nvim] Browsing snippets for editing'
+    if language_filter then
+      msg = msg .. ' - language: ' .. language_filter
+      if language_filter == vim.bo.filetype then
+        msg = msg .. ' (current buffer filetype)'
+      end
+    else
+      msg = msg .. ' - all languages'
+    end
+    vim.notify(msg, vim.log.levels.DEBUG)
+  end
   lsp.list_snippets(language_filter, function(snippets)
     if not snippets or #snippets == 0 then
       vim.notify('No snippets found', vim.log.levels.INFO)
@@ -96,6 +95,9 @@ end
 
 -- Edit existing snippet by ID
 function M.edit_snippet(id)
+  if config.get().debug then
+    vim.notify('[bkmr.nvim] Editing snippet ID: ' .. id, vim.log.levels.DEBUG)
+  end
   lsp.get_snippet(id, function(snippet)
     if snippet then
       ui.open_snippet_editor(snippet, function(updated_snippet)
@@ -103,6 +105,14 @@ function M.edit_snippet(id)
           lsp.update_snippet(updated_snippet, function(success)
             if success then
               vim.notify('Snippet updated successfully', vim.log.levels.INFO)
+              -- Close the editor buffer after successful save
+              for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+                local buf_name = vim.api.nvim_buf_get_name(buf)
+                if buf_name:match('bkmr://snippet/' .. id) then
+                  vim.api.nvim_buf_delete(buf, { force = true })
+                  break
+                end
+              end
             else
               vim.notify('Failed to update snippet', vim.log.levels.ERROR)
             end
@@ -117,6 +127,9 @@ end
 
 -- Create new snippet
 function M.new_snippet()
+  if config.get().debug then
+    vim.notify('[bkmr.nvim] Creating new snippet', vim.log.levels.DEBUG)
+  end
   local template_snippet = {
     id = nil,
     title = '',
@@ -130,6 +143,14 @@ function M.new_snippet()
       lsp.create_snippet(new_snippet, function(success, result)
         if success then
           vim.notify('Snippet created successfully', vim.log.levels.INFO)
+          -- Close the editor buffer after successful save
+          for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            local buf_name = vim.api.nvim_buf_get_name(buf)
+            if buf_name:match('bkmr://snippet/new') then
+              vim.api.nvim_buf_delete(buf, { force = true })
+              break
+            end
+          end
         else
           vim.notify('Failed to create snippet: ' .. (result or 'Unknown error'), vim.log.levels.ERROR)
         end
@@ -140,6 +161,9 @@ end
 
 -- Delete snippet with confirmation
 function M.delete_snippet(id)
+  if config.get().debug then
+    vim.notify('[bkmr.nvim] Deleting snippet ID: ' .. id, vim.log.levels.DEBUG)
+  end
   if config.get().edit.confirm_delete then
     local confirm = vim.fn.confirm('Delete snippet ' .. id .. '?', '&Yes\n&No', 2)
     if confirm ~= 1 then
@@ -156,17 +180,6 @@ function M.delete_snippet(id)
   end)
 end
 
--- Search snippets (placeholder - uses list with filtering for now)
-function M.search_snippets(query)
-  -- For now, just list all snippets and let user filter
-  -- Could be enhanced to use bkmr CLI search directly
-  M.list_snippets()
-end
-
--- List available tags (placeholder)
-function M.list_tags()
-  vim.notify('Tag listing not implemented yet', vim.log.levels.WARN)
-end
 
 -- Utility functions for other plugins to integrate
 

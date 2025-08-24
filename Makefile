@@ -49,32 +49,54 @@ update-nvim:  ## Push-force and re-load plugin from github
 TESTING: ## ##################################################################
 
 .PHONY: test
-test: ## run all tests using plenary.nvim
+test: ## run full test suite with plenary.nvim
 	@echo "Running bkmr.nvim test suite..."
-	@echo "Note: Tests require plenary.nvim and real bkmr CLI"
-	@if [ -d "tests" ]; then \
-		nvim --headless -c "lua require('plenary.test_harness').test_directory('tests')" -c "qa"; \
+	@failed=0; \
+	for test_file in tests/test_*.lua; do \
+		echo ""; \
+		echo "Testing: $$(basename $$test_file)"; \
+		echo "========================================"; \
+		output=$$(nvim --headless --noplugin \
+			-c "set rtp+=~/.local/share/nvim/lazy/plenary.nvim" \
+			-c "set rtp+=." \
+			-c "lua vim.lsp = { start = function() return nil end, get_clients = function() return {} end }" \
+			-c "runtime plugin/plenary.vim" \
+			-c "PlenaryBustedFile $$test_file" \
+			+qa! 2>&1); \
+		echo "$$output" | grep -E "(Success:|Failed :|Errors :)" | tail -3; \
+		if echo "$$output" | grep -q "Tests Failed"; then \
+			failed=1; \
+		fi; \
+	done; \
+	echo ""; \
+	if [ $$failed -eq 1 ]; then \
+		echo "❌ Some tests failed"; \
+		exit 1; \
 	else \
-		echo "No tests directory found. Create tests/ with plenary tests."; \
+		echo "✅ All tests passed!"; \
 	fi
 
 .PHONY: test-interactive
 test-interactive: ## run tests in interactive mode
 	@echo "Running tests in interactive Neovim..."
-	@if [ -d "tests" ]; then \
-		nvim -c "lua require('plenary.test_harness').test_directory('tests')"; \
-	else \
-		echo "No tests directory found."; \
+	nvim -c "lua require('plenary.test_harness').test_directory('tests', {minimal_init = 'tests/minimal_init.lua'})"
+
+.PHONY: test-file
+test-file: ## run specific test file (usage: make test-file FILE=test_ui.lua)
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make test-file FILE=test_ui.lua"; \
+		exit 1; \
 	fi
+	@echo "Running test file: $(FILE)"
+	@nvim --headless -c "lua require('plenary.test_harness').test_file('tests/$(FILE)', {minimal_init = 'tests/minimal_init.lua'})" -c "qa!"
 
 .PHONY: test-manual
-test-manual: ## open test environment for manual testing
-	@echo "Opening manual test environment..."
-	@echo "Testing bkmr.nvim functionality:"
-	@echo "1. Run :BkmrList to test snippet listing"
-	@echo "2. Run :BkmrNew to test snippet creation"
-	@echo "3. Test LSP completion in various filetypes"
-	nvim --clean -c "set rtp+=." -c "lua require('bkmr').setup()"
+test-manual: ## run manual tests with test scripts
+	@echo "Manual test options:"
+	@echo "  nvim --clean -u scripts/test_minimal.lua"
+	@echo "  nvim --clean -u scripts/test_interactive.lua"
+	@echo "  nvim --clean -u scripts/test_debug.lua"
+
 
 .PHONY: test-lsp
 test-lsp: ## test LSP integration manually

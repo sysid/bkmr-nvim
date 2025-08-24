@@ -143,26 +143,15 @@ Default keymaps (disable with `vim.g.bkmr_no_default_mappings = true`):
 ==============================================================================
 6. COMMANDS					*bkmr-commands*
 
-						*:BkmrList*
-:BkmrList [language]		List all snippets, optionally filtered by language
-
 						*:BkmrEdit*
-:BkmrEdit {id}			Edit snippet by ID
+:BkmrEdit [language]		Browse and edit snippets (defaults to current buffer's
+				filetype). Select a snippet to open it for editing.
 
 						*:BkmrNew*
 :BkmrNew			Create new snippet
 
 						*:BkmrDelete*
 :BkmrDelete {id}		Delete snippet by ID
-
-						*:BkmrSearch*
-:BkmrSearch [query]		Search snippets
-
-						*:BkmrTags*
-:BkmrTags			List available tags
-
-						*:BkmrInsertPath*
-:BkmrInsertPath			Insert filepath comment at cursor
 
 ==============================================================================
 7. API						*bkmr-api*
@@ -174,9 +163,6 @@ bkmr.setup({opts})		Setup plugin with configuration options
 
 						*bkmr.list_snippets()*
 bkmr.list_snippets({language})	List snippets, optionally filtered by language
-
-						*bkmr.edit_snippet()*
-bkmr.edit_snippet({id})		Edit existing snippet by ID
 
 						*bkmr.new_snippet()*
 bkmr.new_snippet()		Create new snippet

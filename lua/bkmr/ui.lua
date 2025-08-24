@@ -98,9 +98,16 @@ function M.open_snippet_editor(snippet, callback)
   local buf = vim.api.nvim_create_buf(false, true)
   
   -- Set buffer options
-  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'acwrite')  -- Allow custom write
   vim.api.nvim_buf_set_option(buf, 'filetype', 'bkmr')
   vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  vim.api.nvim_buf_set_option(buf, 'modified', false)
+  
+  -- Set a meaningful name for the buffer
+  local buf_name = snippet.id and 
+    string.format('bkmr://snippet/%d', snippet.id) or 
+    'bkmr://snippet/new'
+  vim.api.nvim_buf_set_name(buf, buf_name)
   
   -- Generate template content
   local content = M.generate_template(snippet)
@@ -140,25 +147,54 @@ function M.generate_template(snippet)
   local lines = {}
   
   if config.get().edit.template_header then
-    -- Template header (similar to bkmr edit format)
-    table.insert(lines, "# Title: " .. (snippet.title or ""))
-    table.insert(lines, "# Description: " .. (snippet.description or ""))
+    -- Template header matching bkmr edit format
+    table.insert(lines, "# Snippet Template")
+    table.insert(lines, "# Lines starting with '#' are comments and will be ignored.")
+    table.insert(lines, "# Section markers (=== SECTION_NAME ===) are required and must not be removed.")
+    table.insert(lines, "")
     
+    -- ID section
+    if snippet.id then
+      table.insert(lines, "=== ID ===")
+      table.insert(lines, tostring(snippet.id))
+    end
+    
+    -- CONTENT section (not URL for snippets)
+    table.insert(lines, "=== CONTENT ===")
+    local content = snippet.url or ""
+    if content ~= "" then
+      local content_lines = vim.split(content, '\n', true)
+      for _, line in ipairs(content_lines) do
+        table.insert(lines, line)
+      end
+    end
+    
+    -- TITLE section
+    table.insert(lines, "=== TITLE ===")
+    table.insert(lines, snippet.title or "")
+    
+    -- TAGS section
+    table.insert(lines, "=== TAGS ===")
     local tags_str = ""
     if snippet.tags and #snippet.tags > 0 then
       tags_str = table.concat(snippet.tags, ",")
     end
-    table.insert(lines, "# Tags: " .. tags_str)
-    table.insert(lines, "# Type: snip")
-    table.insert(lines, "---")
-  end
-  
-  -- Content section
-  local content = snippet.url or ""
-  if content ~= "" then
-    local content_lines = vim.split(content, '\n', true)
-    for _, line in ipairs(content_lines) do
-      table.insert(lines, line)
+    table.insert(lines, tags_str)
+    
+    -- COMMENTS section (description)
+    table.insert(lines, "=== COMMENTS ===")
+    table.insert(lines, snippet.description or "")
+    
+    -- END marker
+    table.insert(lines, "=== END ===")
+  else
+    -- Simple format without template header
+    local content = snippet.url or ""
+    if content ~= "" then
+      local content_lines = vim.split(content, '\n', true)
+      for _, line in ipairs(content_lines) do
+        table.insert(lines, line)
+      end
     end
   end
   
@@ -168,40 +204,60 @@ end
 -- Parse template content back to snippet
 function M.parse_template(lines)
   local snippet = {
+    id = nil,
     title = "",
     description = "",
     tags = {},
     url = ""
   }
   
-  local in_content = false
-  local content_lines = {}
+  local current_section = nil
+  local section_content = {}
   
   for _, line in ipairs(lines) do
-    if line:match("^# Title: (.*)") then
-      snippet.title = line:match("^# Title: (.*)")
-    elseif line:match("^# Description: (.*)") then  
-      snippet.description = line:match("^# Description: (.*)")
-    elseif line:match("^# Tags: (.*)") then
-      local tags_str = line:match("^# Tags: (.*)")
-      if tags_str and tags_str ~= "" then
-        snippet.tags = vim.split(tags_str, ",", true)
-        -- Trim whitespace
-        for i, tag in ipairs(snippet.tags) do
-          snippet.tags[i] = tag:gsub("^%s*(.-)%s*$", "%1")
-        end
+    -- Check for section markers
+    if line:match("^=== (%w+) ===$") then
+      -- Save previous section content if any
+      if current_section then
+        M.save_section_content(snippet, current_section, section_content)
+        section_content = {}
       end
-    elseif line == "---" then
-      in_content = true
-    elseif in_content then
-      table.insert(content_lines, line)
+      current_section = line:match("^=== (%w+) ===$")
+    elseif not line:match("^#") and current_section and current_section ~= "END" then
+      -- Add non-comment lines to current section
+      table.insert(section_content, line)
     end
   end
   
-  -- Join content lines
-  snippet.url = table.concat(content_lines, '\n')
+  -- Save last section if any
+  if current_section and current_section ~= "END" then
+    M.save_section_content(snippet, current_section, section_content)
+  end
   
   return snippet
+end
+
+-- Helper function to save section content to snippet
+function M.save_section_content(snippet, section, content)
+  local content_str = table.concat(content, '\n'):gsub("^%s*(.-)%s*$", "%1")
+  
+  if section == "ID" then
+    snippet.id = tonumber(content_str)
+  elseif section == "CONTENT" then
+    snippet.url = content_str
+  elseif section == "TITLE" then
+    snippet.title = content_str
+  elseif section == "TAGS" then
+    if content_str and content_str ~= "" then
+      snippet.tags = vim.split(content_str, ",", true)
+      -- Trim whitespace from each tag
+      for i, tag in ipairs(snippet.tags) do
+        snippet.tags[i] = tag:gsub("^%s*(.-)%s*$", "%1")
+      end
+    end
+  elseif section == "COMMENTS" then
+    snippet.description = content_str
+  end
 end
 
 -- Setup editor buffer with keymaps and autocommands
@@ -258,12 +314,12 @@ function M.save_snippet(buf, original_snippet, callback)
   -- Validate required fields
   if not parsed_snippet.title or parsed_snippet.title == "" then
     vim.notify('Title is required', vim.log.levels.ERROR)
-    return
+    return false
   end
   
   if not parsed_snippet.url or parsed_snippet.url == "" then
     vim.notify('Content is required', vim.log.levels.ERROR)
-    return
+    return false
   end
   
   -- Preserve original ID if editing existing snippet
@@ -276,25 +332,36 @@ function M.save_snippet(buf, original_snippet, callback)
     table.insert(parsed_snippet.tags, '_snip_')
   end
   
-  -- Close editor buffer
-  vim.api.nvim_buf_delete(buf, { force = true })
+  -- Mark buffer as saved (prevents E382)
+  vim.api.nvim_buf_set_option(buf, 'modified', false)
   
-  -- Call callback with parsed snippet
+  -- Notify user that save is in progress
+  vim.notify('Saving snippet...', vim.log.levels.INFO)
+  
+  -- Call callback with parsed snippet (the actual save happens here)
   if callback then
     callback(parsed_snippet)
-    -- Prevent multiple calls
-    callback = nil
+    -- Don't close buffer here - let the callback handle it after successful save
   end
+  
+  return true
 end
 
 -- Find content start line (after template header)
 function M.find_content_start(lines)
   for i, line in ipairs(lines) do
-    if line == "---" then
+    if line == "=== CONTENT ===" then
+      -- Position cursor on the line after the CONTENT marker
       return i + 1
     end
   end
-  return #lines + 1
+  -- Fallback to first non-comment line
+  for i, line in ipairs(lines) do
+    if not line:match("^#") and not line:match("^===") and line ~= "" then
+      return i
+    end
+  end
+  return 5  -- Default to line 5 (after header comments)
 end
 
 -- Get window configuration

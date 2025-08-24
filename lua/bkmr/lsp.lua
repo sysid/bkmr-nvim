@@ -15,6 +15,28 @@ local function debug_notify(msg, level)
   end
 end
 
+-- Helper function to truncate large responses for logging
+local function truncate_response(data)
+  if type(data) ~= 'table' then
+    return tostring(data)
+  end
+  
+  -- If it's an array with more than 10 items
+  if #data > 10 then
+    local truncated = {}
+    for i = 1, 5 do
+      truncated[i] = data[i]
+    end
+    truncated[#truncated + 1] = "... (" .. (#data - 10) .. " more items) ..."
+    for i = #data - 4, #data do
+      truncated[#truncated + 1] = data[i]
+    end
+    return vim.inspect(truncated)
+  end
+  
+  return vim.inspect(data)
+end
+
 -- Setup LSP integration
 function M.setup()
   -- Check if bkmr binary is available
@@ -158,23 +180,20 @@ function M.list_snippets(language_filter, callback)
     return
   end
   
-  local arguments
-  if language_filter then
-    arguments = { { language = language_filter } }
+  local request_params = {
+    command = 'bkmr.listSnippets'
+  }
+  
+  if language_filter and language_filter ~= "" then
+    request_params.arguments = { { language = language_filter } }
     debug_notify('Listing snippets for language: ' .. language_filter)
   else
-    -- Empty arguments array for listing all snippets
-    arguments = {}
+    -- Don't send arguments at all for listing all snippets
     debug_notify('Listing all snippets...')
   end
   
-  local request_params = {
-    command = 'bkmr.listSnippets',
-    arguments = arguments
-  }
-  
   client.request('workspace/executeCommand', request_params, function(err, result)
-    debug_notify('LSP listSnippets response - err: ' .. tostring(err) .. ', result: ' .. vim.inspect(result))
+    debug_notify('LSP listSnippets response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
     
     if err then
       vim.notify('Failed to list snippets: ' .. tostring(err), vim.log.levels.ERROR)
@@ -221,7 +240,7 @@ function M.get_snippet(id, callback)
     command = 'bkmr.getSnippet',
     arguments = { { id = id } }
   }, function(err, result)
-    debug_notify('LSP getSnippet response - err: ' .. tostring(err) .. ', result: ' .. vim.inspect(result))
+    debug_notify('LSP getSnippet response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
     
     if err then
       vim.notify('Failed to get snippet ' .. id .. ': ' .. tostring(err), vim.log.levels.ERROR)
@@ -233,22 +252,31 @@ function M.get_snippet(id, callback)
       -- Some LSP servers might return snippet directly without success field
       debug_notify('Retrieved snippet ' .. id .. ' (no success field)')
       callback(result.snippet)
+    elseif result and type(result) == 'table' then
+      -- Check if the result IS the snippet directly (has expected fields)
+      if result.id or result.url or result.title then
+        debug_notify('Retrieved snippet ' .. id .. ' (direct response)')
+        callback(result)
+      else
+        -- It's an error response
+        local error_msg = result.error or result
+        local error_str
+        if type(error_msg) == 'table' then
+          -- If it's a table, try to extract meaningful info
+          error_str = error_msg.message or error_msg.error or vim.inspect(error_msg)
+        else
+          error_str = tostring(error_msg)
+        end
+        
+        if error_str:match('not found') or error_str:match('No snippet') or error_str:match('not a snippet') then
+          vim.notify('Snippet ' .. id .. ' not found or is not a snippet type.', vim.log.levels.WARN)
+        else
+          vim.notify('Failed to get snippet ' .. id .. ': ' .. error_str, vim.log.levels.ERROR)
+        end
+        callback(nil)
+      end
     else
-      local error_msg = result and result.error or 'Unknown error'
-      -- Handle both string and table error messages
-      local error_str
-      if type(error_msg) == 'table' then
-        -- If it's a table, try to extract meaningful info
-        error_str = error_msg.message or error_msg.error or vim.inspect(error_msg)
-      else
-        error_str = tostring(error_msg)
-      end
-      
-      if error_str:match('not found') or error_str:match('No snippet') then
-        vim.notify('Snippet ' .. id .. ' not found. It may have been deleted.', vim.log.levels.WARN)
-      else
-        vim.notify('Failed to get snippet ' .. id .. ': ' .. error_str, vim.log.levels.ERROR)
-      end
+      vim.notify('Failed to get snippet ' .. id .. ': Unexpected response format', vim.log.levels.ERROR)
       callback(nil)
     end
   end)
@@ -269,14 +297,21 @@ function M.create_snippet(snippet, callback)
     tags = snippet.tags or {}
   }
   
+  debug_notify('Creating snippet with params: ' .. truncate_response(params))
+  
   client.request('workspace/executeCommand', {
     command = 'bkmr.createSnippet',
     arguments = { params }
   }, function(err, result)
+    debug_notify('LSP createSnippet response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
     if err then
       vim.notify('Failed to create snippet: ' .. tostring(err), vim.log.levels.ERROR)
       callback(false, tostring(err))
     elseif result and result.success then
+      callback(true, result)
+    elseif result and result.id then
+      -- Server returned the created snippet directly (which means success)
+      debug_notify('Snippet created successfully with ID: ' .. result.id)
       callback(true, result)
     else
       callback(false, result and result.error or 'Unknown error')
@@ -300,14 +335,21 @@ function M.update_snippet(snippet, callback)
     tags = snippet.tags
   }
   
+  debug_notify('Updating snippet ' .. snippet.id .. ' with params: ' .. truncate_response(params))
+  
   client.request('workspace/executeCommand', {
     command = 'bkmr.updateSnippet',
     arguments = { params }
   }, function(err, result)
+    debug_notify('LSP updateSnippet response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
     if err then
       vim.notify('Failed to update snippet: ' .. tostring(err), vim.log.levels.ERROR)
       callback(false)
     elseif result and result.success then
+      callback(true)
+    elseif result and result.id then
+      -- Server returned the updated snippet directly (which means success)
+      debug_notify('Snippet updated successfully')
       callback(true)
     else
       local error_msg = result and result.error or 'Unknown error'
@@ -326,14 +368,21 @@ function M.delete_snippet(id, callback)
     return
   end
   
+  debug_notify('Deleting snippet ' .. id)
+  
   client.request('workspace/executeCommand', {
     command = 'bkmr.deleteSnippet',
     arguments = { { id = id } }
   }, function(err, result)
+    debug_notify('LSP deleteSnippet response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
     if err then
       vim.notify('Failed to delete snippet: ' .. tostring(err), vim.log.levels.ERROR)
       callback(false)
     elseif result and result.success then
+      callback(true)
+    elseif result == vim.NIL or result == nil then
+      -- Server returned nil/empty response (which typically means success for delete operations)
+      debug_notify('Snippet deleted successfully')
       callback(true)
     else
       local error_msg = result and result.error or 'Unknown error'
