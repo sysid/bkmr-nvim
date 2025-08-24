@@ -1,0 +1,22 @@
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = false
+message = "Bump version to {new_version}"
+
+[tool.bumpversion.file_patterns]
+"VERSION" = [
+    {search = "{current_version}", replace = "{new_version}"},
+]
+"README.md" = [
+    {search = "bkmr.nvim v{current_version}", replace = "bkmr.nvim v{new_version}"},
+]
+"lua/bkmr/init.lua" = [
+    {search = "M.version = '{current_version}'", replace = "M.version = '{new_version}'"},
+]
+
+[[tool.bumpversion.files]]
+filename = "VERSION"
+
+[[tool.bumpversion.files]]
+filename = "lua/bkmr/init.lua"

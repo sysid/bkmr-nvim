@@ -1,0 +1,224 @@
+*bkmr.txt*	bkmr.nvim - Neovim integration for bkmr snippet manager
+
+Author: bkmr.nvim contributors
+License: MIT
+
+==============================================================================
+CONTENTS						*bkmr-contents*
+
+1. Introduction					|bkmr-introduction|
+2. Requirements					|bkmr-requirements|
+3. Installation					|bkmr-installation|
+4. Configuration				|bkmr-configuration|
+5. Usage					|bkmr-usage|
+6. Commands					|bkmr-commands|
+7. API						|bkmr-api|
+8. Troubleshooting				|bkmr-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION					*bkmr-introduction*
+
+bkmr.nvim is a comprehensive Neovim plugin for the bkmr snippet manager. It
+provides seamless integration with the bkmr LSP server and offers a rich
+editing interface for managing snippets directly within Neovim.
+
+Features:
+- LSP integration for snippet completion
+- Visual snippet management with fzf-lua
+- Rich editing interface with template format
+- Full CRUD operations via LSP commands
+- Language-aware snippet filtering
+- Template variable support
+
+==============================================================================
+2. REQUIREMENTS					*bkmr-requirements*
+
+- Neovim 0.8+
+- bkmr 4.24.0+ (with LSP support)
+- Optional: fzf-lua for enhanced snippet selection
+- Optional: nvim-lspconfig for automatic LSP setup
+
+==============================================================================
+3. INSTALLATION					*bkmr-installation*
+
+Using lazy.nvim: >
+	{
+	  "sysid/bkmr.nvim",
+	  dependencies = {
+	    "ibhagwan/fzf-lua",     -- Optional
+	    "neovim/nvim-lspconfig" -- Optional
+	  },
+	  config = function()
+	    require('bkmr').setup()
+	  end
+	}
+<
+
+Using packer.nvim: >
+	use {
+	  'sysid/bkmr.nvim',
+	  requires = {
+	    'ibhagwan/fzf-lua',
+	    'neovim/nvim-lspconfig'
+	  },
+	  config = function()
+	    require('bkmr').setup()
+	  end
+	}
+<
+
+==============================================================================
+4. CONFIGURATION				*bkmr-configuration*
+
+Default configuration: >
+	require('bkmr').setup({
+	  lsp = {
+	    auto_setup = true,
+	    cmd = { "bkmr", "lsp" },
+	    filetypes = {
+	      'rust', 'javascript', 'typescript', 'python', 'go', 'java',
+	      'c', 'cpp', 'html', 'css', 'scss', 'ruby', 'php', 'swift',
+	      'kotlin', 'shell', 'sh', 'bash', 'yaml', 'json', 'markdown',
+	      'xml', 'vim', 'lua', 'toml'
+	    }
+	  },
+	  ui = {
+	    split_direction = "vertical",
+	    split_size = 80,
+	    use_telescope = false,
+	    use_fzf = true,
+	  },
+	  edit = {
+	    auto_save = false,
+	    confirm_delete = true,
+	    template_header = true,
+	  }
+	})
+<
+
+Configuration options:
+
+*bkmr-config-lsp*
+lsp.auto_setup			Auto-configure with lspconfig (default: true)
+lsp.cmd				LSP server command (default: {"bkmr", "lsp"})
+lsp.filetypes			Supported file types for LSP
+
+*bkmr-config-ui*
+ui.split_direction		Split direction: "vertical" or "horizontal"
+ui.split_size			Split width/height (default: 80)
+ui.use_telescope		Use telescope for selection (default: false)
+ui.use_fzf			Use fzf-lua for selection (default: true)
+
+*bkmr-config-edit*
+edit.auto_save			Auto-save on buffer leave (default: false)
+edit.confirm_delete		Confirm before deletion (default: true)
+edit.template_header		Show template header in edit buffer (default: true)
+
+==============================================================================
+5. USAGE					*bkmr-usage*
+
+						*bkmr-snippet-editing*
+When editing snippets, the interface uses a structured template format: >
+	# Title: My Snippet Title
+	# Description: Description of what this snippet does
+	# Tags: rust,function,_snip_
+	# Type: snip
+	---
+	fn hello_world() {
+	    println!("Hello, world!");
+	}
+<
+
+Editing controls:
+- Save: |:write| or `:W`
+- Save and close: `:wq`
+- Cancel: |:quit| (without saving)
+
+						*bkmr-default-keymaps*
+Default keymaps (disable with `vim.g.bkmr_no_default_mappings = true`):
+- `<leader>bs` - List bkmr snippets
+- `<leader>bn` - Create new snippet
+- `<leader>bp` - Insert filepath comment
+
+==============================================================================
+6. COMMANDS					*bkmr-commands*
+
+						*:BkmrList*
+:BkmrList [language]		List all snippets, optionally filtered by language
+
+						*:BkmrEdit*
+:BkmrEdit {id}			Edit snippet by ID
+
+						*:BkmrNew*
+:BkmrNew			Create new snippet
+
+						*:BkmrDelete*
+:BkmrDelete {id}		Delete snippet by ID
+
+						*:BkmrSearch*
+:BkmrSearch [query]		Search snippets
+
+						*:BkmrTags*
+:BkmrTags			List available tags
+
+						*:BkmrInsertPath*
+:BkmrInsertPath			Insert filepath comment at cursor
+
+==============================================================================
+7. API						*bkmr-api*
+
+The plugin provides a Lua API for integration:
+
+						*bkmr.setup()*
+bkmr.setup({opts})		Setup plugin with configuration options
+
+						*bkmr.list_snippets()*
+bkmr.list_snippets({language})	List snippets, optionally filtered by language
+
+						*bkmr.edit_snippet()*
+bkmr.edit_snippet({id})		Edit existing snippet by ID
+
+						*bkmr.new_snippet()*
+bkmr.new_snippet()		Create new snippet
+
+						*bkmr.delete_snippet()*
+bkmr.delete_snippet({id})	Delete snippet by ID
+
+						*bkmr.is_lsp_available()*
+bkmr.is_lsp_available()		Check if LSP is available and ready
+
+						*bkmr.get_context()*
+bkmr.get_context()		Get current buffer context information
+
+						*bkmr.get_config()*
+bkmr.get_config()		Get current plugin configuration
+
+==============================================================================
+8. TROUBLESHOOTING				*bkmr-troubleshooting*
+
+						*bkmr-lsp-not-starting*
+LSP Not Starting ~
+1. Verify bkmr is installed: `which bkmr`
+2. Check bkmr version: `bkmr --version` (should be 4.24.0+)
+3. Test LSP manually: `bkmr lsp`
+
+						*bkmr-no-completions*
+No Completions ~
+1. Ensure snippets exist: `bkmr search -t _snip_`
+2. Check LSP client is attached: |:LspInfo|
+3. Verify filetype mapping in configuration
+
+						*bkmr-selection-issues*
+Snippet Selection Issues ~
+1. If fzf-lua isn't working, install it or disable: `use_fzf = false`
+2. For telescope users, set: `use_telescope = true, use_fzf = false`
+
+						*bkmr-template-parsing*
+Template Parsing ~
+The plugin expects bkmr edit format:
+- Lines starting with `# Field:` are metadata
+- `---` separator divides metadata from content
+- Everything after `---` is snippet content
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
