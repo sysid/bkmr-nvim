@@ -15,7 +15,7 @@ local default_config = {
   },
   ui = {
     split_direction = "vertical",      -- "horizontal" | "vertical"
-    split_size = 80,                  -- Split width/height
+    split_size = "50%",                -- Split width/height (number or percentage string)
     use_telescope = false,            -- Use telescope for selection (disabled per user request)
     use_fzf = true,                   -- Use fzf-lua for selection (enabled per user request)
   },
@@ -58,10 +58,17 @@ function M.validate(cfg)
     cfg.ui.split_direction = "vertical"
   end
   
-  -- Validate split_size
-  if type(cfg.ui.split_size) ~= "number" or cfg.ui.split_size <= 0 then
-    vim.notify('Invalid split_size: ' .. tostring(cfg.ui.split_size) .. '. Using 80.', vim.log.levels.WARN)
-    cfg.ui.split_size = 80
+  -- Validate split_size (can be number or percentage string)
+  local split_size = cfg.ui.split_size
+  if type(split_size) == "string" then
+    -- Check if it's a valid percentage format
+    if not split_size:match("^%d+%%$") then
+      vim.notify('Invalid split_size format: ' .. split_size .. '. Using "50%".', vim.log.levels.WARN)
+      cfg.ui.split_size = "50%"
+    end
+  elseif type(split_size) ~= "number" or split_size <= 0 then
+    vim.notify('Invalid split_size: ' .. tostring(split_size) .. '. Using "50%".', vim.log.levels.WARN)
+    cfg.ui.split_size = "50%"
   end
   
   -- Validate LSP command

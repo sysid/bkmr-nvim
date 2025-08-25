@@ -61,7 +61,7 @@ require('bkmr').setup({
   },
   ui = {
     split_direction = "vertical",         -- "horizontal" | "vertical"
-    split_size = 80,                     -- Split width/height
+    split_size = "50%",                  -- Split width/height (number or "N%" for percentage)
     use_telescope = false,               -- Use telescope for selection
     use_fzf = true,                      -- Use fzf-lua for selection
   },
@@ -130,13 +130,8 @@ This snippet demonstrates the editing format
 === END ===
 ```
 
-**Note**: All content within sections is preserved literally, including lines starting with `#`. Only template header comments (outside of sections) are ignored.
-
-**Editing Controls:**
-- Save: `:w` or `:W`
-- Save and close: `:wq`
-- Cancel: `:q` (without saving)
-- The cursor automatically positions at the content section
+**Note**: All content within sections is preserved literally, including lines starting with `#`.
+Only template header comments (outside of sections) are ignored.
 
 ### LSP Completion
 
@@ -190,7 +185,8 @@ bkmr.delete_snippet(456)
 
 ## Testing
 
-The plugin includes a comprehensive test suite using plenary.nvim. Tests cover configuration management, UI template generation/parsing, and LSP response handling.
+The plugin includes a comprehensive test suite using plenary.nvim. Tests cover configuration
+management, UI template generation/parsing, and LSP response handling.
 
 ### Prerequisites
 
@@ -219,12 +215,6 @@ make test-file FILE=test_ui.lua
 make test-manual
 ```
 
-### Test Coverage
-
-- **test_config.lua**: Configuration defaults, merging, and LSP config generation
-- **test_ui.lua**: Template generation with section markers, parsing, response truncation
-- **test_lsp.lua**: Response handling, error extraction, parameter formatting
-
 ## Troubleshooting
 
 ### LSP Not Starting
@@ -247,14 +237,6 @@ make test-manual
 2. For telescope users (not yet implemented), set: `use_telescope = true, use_fzf = false`
 3. Falls back to builtin vim.ui.select if neither is available
 
-### Template Parsing Issues
-
-The plugin uses section markers for editing:
-- Sections start with `=== SECTION_NAME ===`
-- Required sections: CONTENT, TITLE, TAGS, COMMENTS
-- Lines starting with `#` are treated as comments
-- The `_snip_` tag is automatically added if missing
-
 ### Common Errors
 
 **"Failed to create/update snippet: Unknown error"**
@@ -269,43 +251,10 @@ The plugin uses section markers for editing:
 - Empty language filters are now properly handled
 - Use `:BkmrList` without arguments to list all snippets
 
-## Development
-
-### Project Structure
-
-```
-bkmr.nvim/
-├── lua/bkmr/
-│   ├── init.lua       # Main plugin entry point
-│   ├── config.lua     # Configuration management
-│   ├── lsp.lua        # LSP client integration
-│   └── ui.lua         # UI components and editing
-├── plugin/
-│   └── bkmr.lua       # Vim plugin loader
-├── syntax/
-│   └── bkmr.vim       # Syntax highlighting for edit buffers
-├── tests/             # Test suite
-│   ├── test_config.lua
-│   ├── test_ui.lua
-│   └── test_lsp.lua
-└── scripts/           # Testing scripts
-    ├── test_minimal.lua
-    ├── test_interactive.lua
-    └── test_debug.lua
-```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Run tests: `make test`
-5. Submit a pull request
 
 ## Related Projects
 
 - [bkmr](https://github.com/sysid/bkmr) - Command-line bookmark and snippet manager
-- [bkmr-lsp](../bkmr-lsp) - LSP server implementation (integrated into bkmr 4.24.0+)
 - [bkmr-intellij-plugin](../bkmr-intellij-plugin) - IntelliJ Platform integration
 
 ## License

@@ -119,14 +119,33 @@ function M.open_snippet_editor(snippet, callback)
   local win_config = M.get_window_config(cfg)
   local win
   
+  -- Calculate actual split size
+  local split_size = cfg.ui.split_size
+  local actual_size
+  
+  if type(split_size) == "string" and split_size:match("^%d+%%$") then
+    -- Extract percentage value and calculate actual size
+    local percentage = tonumber(split_size:match("^(%d+)%%$")) / 100
+    if cfg.ui.split_direction == "vertical" then
+      -- For vertical split, use percentage of total columns
+      actual_size = math.floor(vim.api.nvim_get_option('columns') * percentage)
+    else
+      -- For horizontal split, use percentage of total lines minus statusline/cmdline
+      actual_size = math.floor((vim.api.nvim_get_option('lines') - 2) * percentage)
+    end
+  else
+    -- Use fixed size value
+    actual_size = split_size
+  end
+  
   if cfg.ui.split_direction == "vertical" then
     vim.cmd('vsplit')
     win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_width(win, cfg.ui.split_size)
+    vim.api.nvim_win_set_width(win, actual_size)
   else
     vim.cmd('split')
     win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_height(win, cfg.ui.split_size)
+    vim.api.nvim_win_set_height(win, actual_size)
   end
   
   -- Set buffer in window
