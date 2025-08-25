@@ -107,13 +107,14 @@ When editing snippets, the interface uses section markers matching `bkmr edit`:
 
 ```
 # Snippet Template
-# Lines starting with '#' are comments and will be ignored.
 # Section markers (=== SECTION_NAME ===) are required and must not be removed.
 
 === ID ===
 123
 
 === CONTENT ===
+#!/bin/bash
+# This comment is part of the snippet and will be preserved
 echo "Hello, World!"
 echo "This is my snippet content"
 
@@ -128,6 +129,8 @@ This snippet demonstrates the editing format
 
 === END ===
 ```
+
+**Note**: All content within sections is preserved literally, including lines starting with `#`. Only template header comments (outside of sections) are ignored.
 
 **Editing Controls:**
 - Save: `:w` or `:W`

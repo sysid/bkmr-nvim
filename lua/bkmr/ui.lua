@@ -149,7 +149,6 @@ function M.generate_template(snippet)
   if config.get().edit.template_header then
     -- Template header matching bkmr edit format
     table.insert(lines, "# Snippet Template")
-    table.insert(lines, "# Lines starting with '#' are comments and will be ignored.")
     table.insert(lines, "# Section markers (=== SECTION_NAME ===) are required and must not be removed.")
     table.insert(lines, "")
     
@@ -223,10 +222,11 @@ function M.parse_template(lines)
         section_content = {}
       end
       current_section = line:match("^=== (%w+) ===$")
-    elseif not line:match("^#") and current_section and current_section ~= "END" then
-      -- Add non-comment lines to current section
+    elseif current_section and current_section ~= "END" then
+      -- Add all lines within sections (including those starting with #)
       table.insert(section_content, line)
     end
+    -- Lines outside sections (template header comments) are ignored
   end
   
   -- Save last section if any

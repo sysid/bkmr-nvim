@@ -39,7 +39,7 @@ check: test lint ## comprehensive check (lint + tests)
 ci: setup check ## simulate CI pipeline locally
 
 .PHONY: update-nvim
-update-nvim:  ## Push-force and re-load plugin from github
+update-nvim:  ## Push-force and re-load plugin from github (main branch!!!)
 	@echo "Reloading plugin"
 	git caa; git pf
 	nvim --headless "+Lazy! update bkmr-nvim" +qa
