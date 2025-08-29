@@ -20,7 +20,7 @@ local function truncate_response(data)
   if type(data) ~= 'table' then
     return tostring(data)
   end
-  
+
   -- If it's an array with more than 10 items
   if #data > 10 then
     local truncated = {}
@@ -33,7 +33,7 @@ local function truncate_response(data)
     end
     return vim.inspect(truncated)
   end
-  
+
   return vim.inspect(data)
 end
 
@@ -45,11 +45,11 @@ function M.setup()
     vim.notify('Install bkmr with: cargo install bkmr', vim.log.levels.INFO)
     return false
   end
-  
+
   -- Check bkmr version
   local version_output = vim.fn.system('bkmr --version')
   debug_notify('Found bkmr: ' .. vim.trim(version_output))
-  
+
   -- Try to setup with nvim-lspconfig if available
   local ok, lspconfig = pcall(require, 'lspconfig')
   if ok then
@@ -59,17 +59,17 @@ function M.setup()
     debug_notify('nvim-lspconfig not found, using manual LSP setup')
     M.setup_manual()
   end
-  
+
   return true
 end
 
 -- Setup using nvim-lspconfig
 function M.setup_with_lspconfig(lspconfig)
   local lsp_config = config.get_lsp_config()
-  
+
   -- Import configs module separately
   local configs = require('lspconfig.configs')
-  
+
   -- Check if bkmr_lsp is already configured
   if not configs.bkmr_lsp then
     configs.bkmr_lsp = {
@@ -81,7 +81,7 @@ function M.setup_with_lspconfig(lspconfig)
       },
     }
   end
-  
+
   -- Setup the LSP
   lspconfig.bkmr_lsp.setup({
     cmd = lsp_config.cmd,
@@ -94,17 +94,17 @@ function M.setup_with_lspconfig(lspconfig)
       M.on_attach(c, bufnr)
     end,
   })
-  
-  vim.notify('bkmr LSP configured with nvim-lspconfig', vim.log.levels.INFO)
+
+  vim.notify('bkmr LSP configured with nvim-lspconfig', vim.log.levels.DEBUG)
 end
 
 -- Manual LSP setup (fallback)
 function M.setup_manual()
   local lsp_config = config.get_lsp_config()
-  
+
   -- Get root directory for current buffer
   local root_dir = lsp_config.root_dir(vim.fn.expand('%:p'))
-  
+
   local client_id = vim.lsp.start({
     name = 'bkmr-lsp',
     cmd = lsp_config.cmd,
@@ -118,9 +118,9 @@ function M.setup_manual()
       vim.notify('bkmr LSP client attached to buffer ' .. bufnr, vim.log.levels.DEBUG)
     end,
   })
-  
+
   if client_id then
-    vim.notify('bkmr LSP configured manually (client_id: ' .. client_id .. ')', vim.log.levels.INFO)
+    vim.notify('bkmr LSP configured manually (client_id: ' .. client_id .. ')', vim.log.levels.DEBUG)
   else
     vim.notify('Failed to start bkmr LSP server', vim.log.levels.ERROR)
   end
@@ -129,16 +129,16 @@ end
 -- Get LSP capabilities
 function M.get_capabilities()
   local capabilities = vim.lsp.protocol.make_client_capabilities()
-  
+
   -- Add snippet support
   capabilities.textDocument.completion.completionItem.snippetSupport = true
-  
+
   -- Try to get cmp capabilities if available
   local ok, cmp_lsp = pcall(require, 'cmp_nvim_lsp')
   if ok then
     capabilities = cmp_lsp.default_capabilities(capabilities)
   end
-  
+
   return capabilities
 end
 
@@ -146,7 +146,7 @@ end
 function M.on_attach(c, bufnr)
   -- Store client reference
   client = c
-  
+
   -- Setup buffer-local keymaps or other configurations if needed
   -- For now, we rely on the user commands from init.lua
 end
@@ -161,7 +161,7 @@ function M.is_available()
       debug_notify('Found existing bkmr LSP client')
     end
   end
-  
+
   return client ~= nil and not client.is_stopped()
 end
 
@@ -179,11 +179,11 @@ function M.list_snippets(language_filter, callback)
     callback(nil)
     return
   end
-  
+
   local request_params = {
     command = 'bkmr.listSnippets'
   }
-  
+
   if language_filter and language_filter ~= "" then
     request_params.arguments = { { language = language_filter } }
     debug_notify('Listing snippets for language: ' .. language_filter)
@@ -191,10 +191,10 @@ function M.list_snippets(language_filter, callback)
     -- Don't send arguments at all for listing all snippets
     debug_notify('Listing all snippets...')
   end
-  
+
   client.request('workspace/executeCommand', request_params, function(err, result)
     debug_notify('LSP listSnippets response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
-    
+
     if err then
       vim.notify('Failed to list snippets: ' .. tostring(err), vim.log.levels.ERROR)
       callback(nil)
@@ -233,15 +233,15 @@ function M.get_snippet(id, callback)
     callback(nil)
     return
   end
-  
+
   debug_notify('Retrieving snippet ' .. id .. '...')
-  
+
   client.request('workspace/executeCommand', {
     command = 'bkmr.getSnippet',
     arguments = { { id = id } }
   }, function(err, result)
     debug_notify('LSP getSnippet response - err: ' .. tostring(err) .. ', result: ' .. truncate_response(result))
-    
+
     if err then
       vim.notify('Failed to get snippet ' .. id .. ': ' .. tostring(err), vim.log.levels.ERROR)
       callback(nil)
@@ -267,7 +267,7 @@ function M.get_snippet(id, callback)
         else
           error_str = tostring(error_msg)
         end
-        
+
         if error_str:match('not found') or error_str:match('No snippet') or error_str:match('not a snippet') then
           vim.notify('Snippet ' .. id .. ' not found or is not a snippet type.', vim.log.levels.WARN)
         else
@@ -289,16 +289,16 @@ function M.create_snippet(snippet, callback)
     callback(false)
     return
   end
-  
+
   local params = {
     url = snippet.url,
     title = snippet.title,
     description = snippet.description,
     tags = snippet.tags or {}
   }
-  
+
   debug_notify('Creating snippet with params: ' .. truncate_response(params))
-  
+
   client.request('workspace/executeCommand', {
     command = 'bkmr.createSnippet',
     arguments = { params }
@@ -326,7 +326,7 @@ function M.update_snippet(snippet, callback)
     callback(false)
     return
   end
-  
+
   local params = {
     id = snippet.id,
     url = snippet.url,
@@ -334,9 +334,9 @@ function M.update_snippet(snippet, callback)
     description = snippet.description,
     tags = snippet.tags
   }
-  
+
   debug_notify('Updating snippet ' .. snippet.id .. ' with params: ' .. truncate_response(params))
-  
+
   client.request('workspace/executeCommand', {
     command = 'bkmr.updateSnippet',
     arguments = { params }
@@ -367,9 +367,9 @@ function M.delete_snippet(id, callback)
     callback(false)
     return
   end
-  
+
   debug_notify('Deleting snippet ' .. id)
-  
+
   client.request('workspace/executeCommand', {
     command = 'bkmr.deleteSnippet',
     arguments = { { id = id } }
@@ -400,9 +400,9 @@ function M.insert_filepath_comment(callback)
     if callback then callback(false) end
     return
   end
-  
+
   local uri = vim.uri_from_bufnr(0)
-  
+
   client.request('workspace/executeCommand', {
     command = 'bkmr.insertFilepathComment',
     arguments = { uri }
