@@ -95,7 +95,7 @@ function M.setup_with_lspconfig(lspconfig)
     end,
   })
 
-  vim.notify('bkmr LSP configured with nvim-lspconfig', vim.log.levels.DEBUG)
+  debug_notify('bkmr LSP configured with nvim-lspconfig')
 end
 
 -- Manual LSP setup (fallback)
@@ -120,7 +120,7 @@ function M.setup_manual()
   })
 
   if client_id then
-    vim.notify('bkmr LSP configured manually (client_id: ' .. client_id .. ')', vim.log.levels.DEBUG)
+    debug_notify('bkmr LSP configured manually (client_id: ' .. client_id .. ')')
   else
     vim.notify('Failed to start bkmr LSP server', vim.log.levels.ERROR)
   end
