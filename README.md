@@ -10,6 +10,26 @@ snippets directly within Neovim.
 - **Visual Snippet Management**: Browse and select snippets using fzf-lua or builtin selector
 - **Rich Editing Interface**: Edit snippets in vsplit with template format matching `bkmr edit`
 
+The bkmr LSP completion system works by:
+1. Filetype detection: Automatically uses your current buffer's filetype to filter snippets
+2. Tag-based filtering: Snippets must be tagged with both _snip_ AND the language name (e.g., make)
+3. LSP activation: The LSP only attaches to buffers with filetypes in the configured list
+
+
+### Example
+Make a bkmr snippet `target` availabe in nvim buffer for `Makefile`:
+
+1. Enable LSP for Makefiles
+
+Add 'make' to the filetypes configuration so the LSP attaches to Makefile buffers.
+
+2. Tag `target` correctly
+
+Your `target` snippet needs proper tags to appear in Makefile completion:
+- Option A: Tag it as make,_snip_ (Makefile-only)
+- Option B: Tag it as universal,_snip_ (appears in all languages with auto-comment translation)
+- Option C: Tag it as make,bash,shell,_snip_ (appears in Makefiles and shell scripts)
+
 ## Requirements
 
 - Neovim 0.8+

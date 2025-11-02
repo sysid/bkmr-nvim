@@ -10,7 +10,7 @@ local default_config = {
     filetypes = {                     -- Supported file types
       'rust', 'javascript', 'typescript', 'python', 'go', 'java', 'c', 'cpp',
       'html', 'css', 'scss', 'ruby', 'php', 'swift', 'kotlin', 'shell', 'sh',
-      'bash', 'yaml', 'json', 'markdown', 'xml', 'vim', 'lua', 'toml'
+      'bash', 'yaml', 'json', 'markdown', 'xml', 'vim', 'lua', 'toml', 'make'
     }
   },
   ui = {
