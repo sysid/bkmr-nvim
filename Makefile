@@ -159,22 +159,19 @@ VERSIONING: ## ###############################################################
 .PHONY: bump-major
 bump-major: check-github-token ## bump major version, tag and push
 	bump-my-version bump --commit --tag major
-	git push
-	git push --tags
+	git push --follow-tags
 	@$(MAKE) create-release
 
 .PHONY: bump-minor
 bump-minor: check-github-token ## bump minor version, tag and push
 	bump-my-version bump --commit --tag minor
-	git push
-	git push --tags
+	git push --follow-tags
 	@$(MAKE) create-release
 
 .PHONY: bump-patch
 bump-patch: check-github-token ## bump patch version, tag and push
 	bump-my-version bump --commit --tag patch
-	git push
-	git push --tags
+	git push --follow-tags
 	@$(MAKE) create-release
 
 .PHONY: create-release
