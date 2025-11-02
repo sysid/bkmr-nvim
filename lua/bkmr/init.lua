@@ -8,7 +8,7 @@ local lsp = require('bkmr.lsp')
 local ui = require('bkmr.ui')
 
 -- Plugin version
-M.version = '0.2.2'
+M.version = '0.2.3'
 
 -- Setup function - configures the plugin
 function M.setup(opts)
