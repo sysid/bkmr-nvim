@@ -30,6 +30,84 @@ Your `target` snippet needs proper tags to appear in Makefile completion:
 - Option B: Tag it as universal,_snip_ (appears in all languages with auto-comment translation)
 - Option C: Tag it as make,bash,shell,_snip_ (appears in Makefiles and shell scripts)
 
+3. Expand it and fill the tab-stops
+
+Say the `target` snippet stores this body (with LSP snippet tab-stops):
+
+```make
+.PHONY: $1
+$1:  ## $1
+	$0
+```
+
+In a `Makefile` (filetype `make`), the flow is:
+
+1. Type the snippet title, e.g. `target`. The completion item appears in the
+   `nvim-cmp` menu (force it with `<C-Space>` if it hasn't popped up).
+2. Press **`<CR>`** to confirm. Because the LSP returns the item as a snippet,
+   confirming *expands* it and places the cursor on the first tab-stop (`$1`,
+   right after `.PHONY:`). The recipe line below is indented with a real `<Tab>`.
+
+3. Type the target name once, e.g. `build`. `$1` is **mirrored** — all three
+   occurrences fill in together as you type:
+
+   ```make
+   .PHONY: build
+   build:  ## build
+   	<cursor moves here on next jump>
+   ```
+
+4. Press **`<Tab>`** to jump to the final stop (`$0`, the indented recipe line)
+   and type the command. Use **`<S-Tab>`** to jump back to a previous stop.
+
+The tab-stops (`$1`, mirrored, then `$0`) come from the snippet body; the keys
+that drive them come from your completion setup, not from bkmr-nvim.
+
+#### Completion keymaps for this flow
+
+This example assumes **Neovim 0.10+** (native `vim.snippet`) with `nvim-cmp`.
+The relevant mappings — `<CR>` to expand, `<Tab>`/`<S-Tab>` to jump — are:
+
+```lua
+local cmp = require('cmp')
+cmp.setup({
+  -- Expand LSP snippets with Neovim's built-in engine
+  snippet = {
+    expand = function(args) vim.snippet.expand(args.body) end,
+  },
+  mapping = cmp.mapping.preset.insert({
+    ['<C-Space>'] = cmp.mapping.complete(),            -- force the menu
+    ['<CR>']      = cmp.mapping.confirm({ select = true }),  -- confirm = expand
+
+    -- <Tab>: navigate the menu when open, else jump to the next snippet stop.
+    -- The { 'i', 's' } is required: tab-stops are selected in SELECT mode.
+    ['<Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_next_item()
+      elseif vim.snippet.active({ direction = 1 }) then
+        vim.snippet.jump(1)
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+    ['<S-Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_prev_item()
+      elseif vim.snippet.active({ direction = -1 }) then
+        vim.snippet.jump(-1)
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+  }),
+  sources = cmp.config.sources({ { name = 'nvim_lsp' } }),
+})
+```
+
+If you use a different completion plugin (blink.cmp, coq, or LuaSnip-based
+setups), the trigger and jump keys differ — consult that plugin's docs; bkmr
+only supplies the snippet completion items over LSP.
+
 ## Requirements
 
 - Neovim 0.8+
@@ -137,8 +215,19 @@ require('lspconfig').bkmr_lsp.setup({
 - `:BkmrEdit [language]` - Browse and edit snippets (defaults to current buffer's filetype if not specified)
 - `:BkmrNew` - Create new snippet
 - `:BkmrDelete <id>` - Delete snippet by ID
+- `:BkmrInsertPath` - Insert a filepath comment at the cursor
 
 When using `:BkmrEdit`, you can browse available snippets and select one to edit.
+
+### Default Keymaps
+
+Unless `vim.g.bkmr_no_default_mappings` is set, the plugin defines these normal-mode maps:
+
+- `<leader>bs` - Browse/list snippets (all languages)
+- `<leader>bn` - Create new snippet
+- `<leader>bp` - Insert filepath comment
+
+Set `vim.g.bkmr_no_default_mappings = true` before the plugin loads to disable them.
 
 ### Snippet Editing
 
@@ -241,7 +330,7 @@ use 'nvim-lua/plenary.nvim'
 ### Running Tests
 
 ```bash
-# Run all tests (24 tests across 3 modules)
+# Run all tests (28 tests across 3 modules)
 make test
 
 # Run tests interactively in Neovim
@@ -288,7 +377,7 @@ make test-manual
 
 **"Invalid tag: Tag cannot be empty"**
 - Empty language filters are now properly handled
-- Use `:BkmrList` without arguments to list all snippets
+- Use `:BkmrEdit` (or `<leader>bs`) to browse snippets
 
 
 ## Related Projects
