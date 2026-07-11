@@ -48,10 +48,64 @@ describe('config', function()
         }
       })
       local cfg = config.get()
-      
+
       assert.are.equal(false, cfg.lsp.auto_setup)
       assert.are.equal(true, cfg.edit.auto_save)
       assert.are.equal(false, cfg.edit.confirm_delete)
+    end)
+
+    it('should merge extra_filetypes additively with defaults (issue #1)', function()
+      config.setup({
+        lsp = {
+          extra_filetypes = { 'nix', 'dockerfile' }
+        }
+      })
+      local cfg = config.get()
+
+      -- Defaults are preserved
+      assert.is_true(vim.tbl_contains(cfg.lsp.filetypes, 'make'))
+      assert.is_true(vim.tbl_contains(cfg.lsp.filetypes, 'python'))
+      -- Extras are added
+      assert.is_true(vim.tbl_contains(cfg.lsp.filetypes, 'nix'))
+      assert.is_true(vim.tbl_contains(cfg.lsp.filetypes, 'dockerfile'))
+    end)
+
+    it('should not duplicate filetypes already present in defaults', function()
+      config.setup({
+        lsp = {
+          extra_filetypes = { 'make', 'nix', 'make' }
+        }
+      })
+      local cfg = config.get()
+
+      local count = 0
+      for _, ft in ipairs(cfg.lsp.filetypes) do
+        if ft == 'make' then count = count + 1 end
+      end
+      assert.are.equal(1, count)
+    end)
+
+    it('should still allow filetypes to fully replace defaults', function()
+      config.setup({
+        lsp = {
+          filetypes = { 'rust', 'lua' }
+        }
+      })
+      local cfg = config.get()
+
+      assert.are.same({ 'rust', 'lua' }, cfg.lsp.filetypes)
+    end)
+
+    it('should union extra_filetypes on top of a replaced filetypes list', function()
+      config.setup({
+        lsp = {
+          filetypes = { 'rust', 'lua' },
+          extra_filetypes = { 'make' }
+        }
+      })
+      local cfg = config.get()
+
+      assert.are.same({ 'rust', 'lua', 'make' }, cfg.lsp.filetypes)
     end)
   end)
   

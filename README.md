@@ -73,11 +73,12 @@ require('bkmr').setup({
   lsp = {
     auto_setup = true,                    -- Auto-configure with lspconfig
     cmd = { "bkmr", "lsp" },             -- LSP server command
-    filetypes = {                        -- Supported file types
+    filetypes = {                        -- Supported file types (REPLACES defaults when set)
       'rust', 'javascript', 'typescript', 'python', 'go', 'java', 'c', 'cpp',
       'html', 'css', 'scss', 'ruby', 'php', 'swift', 'kotlin', 'shell', 'sh',
-      'bash', 'yaml', 'json', 'markdown', 'xml', 'vim', 'lua', 'toml'
-    }
+      'bash', 'yaml', 'json', 'markdown', 'xml', 'vim', 'lua', 'toml', 'make'
+    },
+    extra_filetypes = {},                -- Filetypes ADDED to the defaults (safe, additive)
   },
   ui = {
     split_direction = "vertical",         -- "horizontal" | "vertical"
@@ -92,6 +93,24 @@ require('bkmr').setup({
   }
 })
 ```
+
+### Adding filetypes
+
+`lsp.filetypes` **replaces** the default list wholesale — if you set it, include
+*every* filetype you want, or the LSP will silently never attach to the ones you
+omit (there is no error or warning). To simply add filetypes without re-listing
+the defaults, use `lsp.extra_filetypes` instead:
+
+```lua
+require('bkmr').setup({
+  lsp = {
+    extra_filetypes = { 'nix', 'dockerfile' },  -- added to the defaults, safe
+  },
+})
+```
+
+`extra_filetypes` is unioned onto whatever `filetypes` resolves to (defaults or
+your override) and de-duplicated, so it can never drop a filetype.
 
 ### Manual LSP Setup
 

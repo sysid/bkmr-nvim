@@ -7,11 +7,12 @@ local default_config = {
   lsp = {
     auto_setup = true,                 -- Auto-configure with lspconfig
     cmd = { "bkmr", "lsp" },          -- LSP server command
-    filetypes = {                     -- Supported file types
+    filetypes = {                     -- Supported file types (REPLACES defaults when set)
       'rust', 'javascript', 'typescript', 'python', 'go', 'java', 'c', 'cpp',
       'html', 'css', 'scss', 'ruby', 'php', 'swift', 'kotlin', 'shell', 'sh',
       'bash', 'yaml', 'json', 'markdown', 'xml', 'vim', 'lua', 'toml', 'make'
-    }
+    },
+    extra_filetypes = {},             -- Filetypes ADDED to `filetypes` (safe, additive)
   },
   ui = {
     split_direction = "vertical",      -- "horizontal" | "vertical"
@@ -30,10 +31,37 @@ local default_config = {
 -- Current configuration (starts as copy of default)
 local current_config = vim.deepcopy(default_config)
 
+-- Union two list-like tables, preserving order and dropping duplicates
+local function merge_filetypes(base, extra)
+  local result = {}
+  local seen = {}
+  for _, list in ipairs({ base, extra }) do
+    for _, ft in ipairs(list) do
+      if not seen[ft] then
+        seen[ft] = true
+        result[#result + 1] = ft
+      end
+    end
+  end
+  return result
+end
+
 -- Setup configuration with user overrides
 function M.setup(user_config)
-  current_config = vim.tbl_deep_extend('force', current_config, user_config or {})
-  
+  user_config = user_config or {}
+  -- Rebuild from defaults so setup() is idempotent (defaults + user config),
+  -- rather than accumulating onto the result of any previous setup() call.
+  current_config = vim.tbl_deep_extend('force', vim.deepcopy(default_config), user_config)
+
+  -- vim.tbl_deep_extend replaces list-like tables wholesale, so a user-supplied
+  -- `lsp.filetypes` fully REPLACES the defaults. `lsp.extra_filetypes` is the
+  -- footgun-free additive path: it is unioned onto `filetypes` so users can add
+  -- a filetype without re-listing every default (issue #1).
+  local extra = user_config.lsp and user_config.lsp.extra_filetypes
+  if extra and not vim.tbl_isempty(extra) then
+    current_config.lsp.filetypes = merge_filetypes(current_config.lsp.filetypes, extra)
+  end
+
   -- Validate configuration
   M.validate(current_config)
 end
